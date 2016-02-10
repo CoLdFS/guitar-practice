@@ -8,6 +8,33 @@
     <script src="libs/vexflow-min.js"></script>
     <script type="text/javascript">
         var a = teoria.Interval.between(teoria.note("c4"), teoria.note("d4")).toString();
+        function randomElement(arr) {
+            return arr[Math.floor(Math.random() * arr.length)]
+        }
+
+        var ScalePracticeTask = function(note, dir, seq, art) {
+            this.showOtions = {
+                'art': true,
+                'seq': true
+            };
+
+            this.note = note;
+            this.dir = dir;
+            this.art = art;
+            this.seq = seq;
+
+            this.setOptions = function (options) {
+                this.showOtions = $.extend(this.showOtions, options);
+            };
+
+            this.toString = function() {
+                var str = this.note.name;
+                str += '<div class="sub header">' + dir.name + '</div>';
+                str += '<div class="sub header">' + 'Секвенция: ' + this.seq.chain +'</div>';
+                str += '<div class="sub header">' + 'Артикуляция: ' + this.art + '</div>';
+                return str;
+            }
+        };
 
         var Guitar = {
             notes :['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
@@ -17,14 +44,91 @@
                 //Если это массив - просто заменим
                 this.tuning = tuning;
             },
-            noteToFret: function (note, shiftPosition) {
-                //
-            }
 
+            cMajorScale1: [
+                {alias: 'G3', pos: {str: 6, fret: 3}},
+                {alias: 'A3', pos: {str: 6, fret: 5}},
+                {alias: 'B3', pos: {str: 5, fret: 2}},
+                {alias: 'C4', pos: {str: 5, fret: 3}},
+                {alias: 'D4', pos: {str: 5, fret: 5}},
+                {alias: 'E4', pos: {str: 4, fret: 2}},
+                {alias: 'F4', pos: {str: 4, fret: 3}},
+                {alias: 'G4', pos: {str: 4, fret: 5}},
+                {alias: 'A4', pos: {str: 3, fret: 2}},
+                {alias: 'B4', pos: {str: 3, fret: 4}},
+                {alias: 'C5', pos: {str: 3, fret: 5}},
+                {alias: 'D5', pos: {str: 2, fret: 3}},
+                {alias: 'E5', pos: {str: 2, fret: 5}},
+                {alias: 'F5', pos: {str: 2, fret: 6}},
+                {alias: 'G5', pos: {str: 1, fret: 3}},
+                {alias: 'A5', pos: {str: 1, fret: 5}}
+            ],
+            getScaleOctave: function (startNote, scale) {
+                //Решим по тупому
+                var len = 8,
+                    found = false,
+                    reg = new RegExp('^' + startNote.value, 'i'),
+                    result = [];
+                $.each(scale, function (ind, el) {
+                    if (reg.test(el.alias)) {
+                        found = true;
+                    }
+                    if (found && len > 0) {
+                        result.push(el);
+                        len--;
+                    }
+                });
+                return result;
+            }
         };
 
-        $(document).ready(function() {
-            var canvas = $("#fret")[0];
+        var Music = {
+            notes: [
+                {value: 'c', name: 'До'},
+                {value: 'd', name: 'Ре'},
+                {value: 'e', name: 'Ми'},
+                {value: 'f', name: 'Фа'},
+                {value: 'g', name: 'Соль'},
+                {value: 'a', name: 'Ля'},
+                {value: 'b', name: 'Си'}
+            ],
+            getRandomNote: function() {
+                //
+                return randomElement(this.notes);
+            }
+        };
+
+        var ScaleTrainer = {
+            directions: [
+                {step: 1, alias: 'up', name: 'Вверх'},
+                {step: -1, alias: 'down', name: 'Вниз'}
+            ],
+            sequens: [
+                {step: 1, chain: '1-2-3-4'},
+                {step: 1, chain: '1-2-3'}
+            ],
+            articulation: ['четверти', 'восьмые', 'восьмые триоли'],
+            getExercice: function () {
+                var startNote = Music.getRandomNote(),
+                    direction = randomElement(this.directions),
+                    sequens = randomElement(this.sequens),
+                    articulation = randomElement(this.articulation);
+                var ex = new ScalePracticeTask(startNote, direction, sequens, articulation);
+
+                $('#scale-info').html(ex.toString());
+                var gScale = Guitar.getScaleOctave(startNote, Guitar.cMajorScale1);
+                if (direction.step == -1) {
+                    gScale.reverse();
+                }
+                drawTabs(gScale);
+                return ex;
+            }
+        };
+
+        function drawTabs(notes) {
+            //var $fret = $('#fret');
+            $('#fret').replaceWith('<canvas id = "fret" width="700" height="200"></canvas>');
+            var canvas = $('#fret')[0];
             var renderer = new Vex.Flow.Renderer(canvas, Vex.Flow.Renderer.Backends.CANVAS);
             var ctx = renderer.getContext();
             ctx.setFont("Arial", 10, "").setBackgroundFillStyle("#eed");
@@ -35,47 +139,61 @@
             tabstave.setContext(ctx).draw();
 
             // Create some notes
-            var notes = [
-                // A single note
-                new Vex.Flow.TabNote({
-                    positions: [{str: 3, fret: 7}],
-                    duration: "q"
-                }),
-                // A chord with the note on the 3rd string bent
-                new Vex.Flow.TabNote({
-                    positions: [{str: 2, fret: 10}, {str: 3, fret: 9}],
-                    duration: "q"
-                }).addModifier(new Vex.Flow.Bend("Full"), 1),
+            var CNotes = [];
+            $.each(notes, function (index, el) {
+                CNotes.push(
+                    new Vex.Flow.TabNote({
+                        positions: [el.pos],
+                        duration: 'q'
+                    })
+                )
+            });
 
-
-                // A single note with a harsh vibrato
-                new Vex.Flow.TabNote({
-                    positions: [{str: 2, fret: 5}],
-                    duration: "h"
-                }).addModifier(new Vex.Flow.Vibrato().setHarsh(true).setVibratoWidth(70), 0)
-            ];
-
-            Vex.Flow.Formatter.FormatAndDraw(ctx, tabstave, notes);
+            Vex.Flow.Formatter.FormatAndDraw(ctx, tabstave, CNotes);
+        }
+        $(document).ready(function() {
+            ScaleTrainer.getExercice();
+            $('#scale-refresh').on('click', function() {
+                ScaleTrainer.getExercice();
+            })
         });
 
   </script>
 </head>
 
 <body>
-  <div class="ui left vertical menu sidebar">
-    <a class="item">
-      Item 1
-    </a>
-    <a class="item">
-      Item 2
-    </a>
-    <a class="item">
-      Item 3
-    </a>
-  </div>
-  <div class="pusher">
-    <h1 class="ui center aligned header">Header</h1>
-    <canvas id = "fret" width="700" height="200"></canvas>
-  </div>
+    <div class="pusher">
+        <h1 class="ui center aligned header">Scales for Elite</h1>
+        <div class="ui  grid">
+            <div class="row">
+                <div class="three wide column">
+                    <div class="ui cards">
+                        <div class="card">
+                            <div class="content">
+                                <!--<div class="header">Play this:</div>-->
+                                <div class="description" style="height:160px">
+                                    <div class="ui circular segment">
+                                        <h2 class="ui header" id="scale-info">
+                                            До
+                                            <div class="sub header">вниз</div>
+                                            <div class="sub header">Секвенция: 1234</div>
+                                            <div class="sub header">Артикуляция: восьмые триоли</div>
+                                        </h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui bottom attached button" id="scale-refresh">
+                                <i class="refresh icon" ></i>
+                                ЕЩЕ
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="thirteen wide column">
+                    <canvas id = "fret" width="700" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
